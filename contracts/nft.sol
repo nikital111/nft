@@ -6,13 +6,15 @@ import "./utils/Roles.sol";
 
 contract NFT is ERC4907, Roles {
 
+    uint constant initialMinted = 2000;
+
     string private baseURI =
         "ipfs://QmYog8dP2hJpgQXvfFes6CfhT64fgzoksG4K3CPAt3PMFC/";
         
     string private baseContractURI =
         "ipfs://QmeRMfUzVGjjsPTpBYRdnZfjSQ6u3N6vdDi2LSpVdELJsA";
 
-    uint public totalSupply = 2000;
+    uint public totalSupply = initialMinted;
 
     address immutable _minter;
 
@@ -20,7 +22,7 @@ contract NFT is ERC4907, Roles {
 
     constructor() ERC4907("NFT", "NFT") {
         _minter = msg.sender;
-        _balances[_minter] = totalSupply;
+        _balances[_minter] = initialMinted;
     }
 
 
@@ -31,7 +33,7 @@ contract NFT is ERC4907, Roles {
         address to,
         uint256 tokenId
     ) public virtual override onlyAdmin{
-        transferFrom(from,to,tokenId);
+        ERC721.transferFrom(from,to,tokenId);
     }
 
     function safeTransferFrom(
@@ -65,7 +67,7 @@ contract NFT is ERC4907, Roles {
     {
         address owner = _owners[tokenId];
         require(tokenId <= totalSupply && tokenId > 0, "invalid token ID");
-        if (owner == address(0)) {
+        if (owner == address(0) && tokenId <= initialMinted) {
             return _minter;
         } else {
             return owner;
@@ -96,6 +98,7 @@ contract NFT is ERC4907, Roles {
             _mint(to, _totalSupply + i);
         }
 
+        
     }
 
 }

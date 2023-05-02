@@ -4,6 +4,10 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { NFT } from "../typechain-types";
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+import { HashZero } from "@ethersproject/constants";
+import { arrayify, BytesLike, concat, hexlify } from "@ethersproject/bytes";
+
+const address0 = "0x0000000000000000000000000000000000000000";
 
 describe("NFT", function () {
   async function deployNFTFixture() {
@@ -36,50 +40,34 @@ describe("NFT", function () {
     console.log("address is valid");
   });
 
-  // it("mint", async function () {
-  //   const { nft, owner, price, otherAccount } = await loadFixture(
-  //     deployNFTFixtureMINT
-  //   );
-  //   const address0 = "0x0000000000000000000000000000000000000000";
-  //   const totalSupplyBefore = await nft.totalSupply();
-  //   const numToMint = 30;
+  it("mint", async function () {
+    const { nft, owner, otherAccount } = await loadFixture(deployNFTFixture);
+    const address0 = "0x0000000000000000000000000000000000000000";
+    const totalSupplyBefore = await nft.totalSupply();
+    const numToMint = 30;
 
-  //   const mintTx = await nft.safeMint(owner.address, numToMint, {
-  //     value: price.mul(numToMint),
-  //   });
+    const mintTx = await nft.mint(otherAccount.address, numToMint);
 
-  //   await expect(mintTx).to.emit(nft, "Transfer");
+    await expect(mintTx)
+      .to.emit(nft, "Transfer")
+      .withArgs(
+        address0,
+        otherAccount.address,
+        totalSupplyBefore.toNumber() + numToMint
+      );
 
-  //   await expect(mintTx).to.changeEtherBalances(
-  //     [owner.address, nft.address],
-  //     [price.mul(-numToMint), price.mul(numToMint)]
-  //   );
+    const balanceNFT = await nft.balanceOf(otherAccount.address);
+    const totalSupplyAfter = await nft.totalSupply();
 
-  //   const balanceNFT = await nft.balanceOf(owner.address);
-  //   const totalSupplyAfter = await nft.totalSupply();
+    expect(balanceNFT).to.eq(numToMint);
+    expect(totalSupplyAfter).to.eq(totalSupplyBefore.toNumber() + numToMint);
 
-  //   expect(balanceNFT).to.eq(numToMint);
-  //   expect(totalSupplyAfter).to.eq(totalSupplyBefore.toNumber() + numToMint);
+    //reverts
 
-  //   //reverts
-
-  //   await expect(
-  //     nft.safeMint(owner.address, 1, { value: price.sub(1) })
-  //   ).to.be.revertedWith("Wrong amount");
-
-  //   await nft.changePrice(ethers.utils.parseEther("2"));
-
-  //   await expect(
-  //     nft.safeMint(owner.address, 1, { value: price })
-  //   ).to.be.revertedWith("Wrong amount");
-
-  //   await nft.changePrice(ethers.utils.parseEther("1"));
-  //   await nft.changeStatus(0);
-
-  //   await expect(
-  //     nft.safeMint(owner.address, 1, { value: price })
-  //   ).to.be.revertedWith("Mint paused");
-  // });
+    await expect(
+      nft.connect(otherAccount).mint(otherAccount.address, 1)
+    ).to.be.revertedWith("Not Owner");
+  });
 
   it("approve nft", async function () {
     const { nft, owner, otherAccount } = await loadFixture(deployNFTFixture);
@@ -183,7 +171,6 @@ describe("NFT", function () {
   it("transfer from nft", async function () {
     const { nft, owner, otherAccount } = await loadFixture(deployNFTFixture);
 
-    const address0 = "0x0000000000000000000000000000000000000000";
     const totalSupply: any = await nft.totalSupply();
     // await nft.approve(otherAccount.address, 1);
     await nft.setAdmin(otherAccount.address, true);
@@ -209,6 +196,23 @@ describe("NFT", function () {
     expect(balanceOwner).to.eq(totalSupply - 1);
     expect(balanceotherAccount).to.eq(1);
     expect(onerOfToken).to.eq(otherAccount.address);
+
+    const transferTx2 = await nft
+      .connect(otherAccount)
+      .transferFrom(owner.address, otherAccount.address, 555);
+
+    await expect(transferTx2)
+      .to.emit(nft, "Transfer")
+      .withArgs(owner.address, otherAccount.address, 555);
+
+    const balanceOwner2 = await nft.balanceOf(owner.address);
+    const balanceotherAccount2 = await nft.balanceOf(otherAccount.address);
+
+    const onerOfToken2 = await nft.ownerOf(555);
+
+    expect(balanceOwner2).to.eq(totalSupply - 2);
+    expect(balanceotherAccount2).to.eq(2);
+    expect(onerOfToken2).to.eq(otherAccount.address);
 
     //reverts
     await expect(
@@ -300,7 +304,7 @@ describe("NFT", function () {
   it("rent", async () => {
     const { nft, owner, otherAccount } = await loadFixture(deployNFTFixture);
 
-    let expires = Math.floor(new Date().getTime() / 1000) + 1000;
+    let expires = Math.floor(new Date().getTime() / 1000) + 10000;
     await nft.setUser(1, otherAccount.address, BigInt(expires));
 
     let user_1 = await nft.userOf(1);
@@ -308,5 +312,19 @@ describe("NFT", function () {
 
     let owner_1 = await nft.ownerOf(1);
     expect(owner_1).to.eq(owner.address);
+
+    const notUser = await nft.userOf(2);
+    expect(notUser).to.eq(address0);
+
+    const exp = await nft.userExpires(1);
+    expect(exp).to.eq(expires);
+
+    const bytes = ethers.utils.toUtf8Bytes("4907");
+
+    const in2 = hexlify(concat([bytes, HashZero]).slice(0, 4));
+
+    const inter = await nft.supportsInterface(in2);
+
+    expect(inter).to.eq(false);
   });
 });
