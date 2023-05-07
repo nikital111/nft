@@ -9,24 +9,19 @@ contract NFT is ERC4907, Roles {
     uint constant initialMinted = 2000;
 
     string private baseURI =
-        "ipfs://QmYog8dP2hJpgQXvfFes6CfhT64fgzoksG4K3CPAt3PMFC/";
+        "";
         
     string private baseContractURI =
-        "ipfs://QmeRMfUzVGjjsPTpBYRdnZfjSQ6u3N6vdDi2LSpVdELJsA";
+        "";
 
     uint public totalSupply = initialMinted;
 
     address immutable _minter;
 
-
-
     constructor() ERC4907("NFT", "NFT") {
         _minter = msg.sender;
         _balances[_minter] = initialMinted;
     }
-
-
-
 
     function transferFrom(
         address from,
