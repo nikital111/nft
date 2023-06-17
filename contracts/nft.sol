@@ -52,8 +52,6 @@ contract NFT is ERC4907, Roles {
         _safeTransfer(from, to, tokenId, data);
     }
 
-
-
         function ownerOf(uint256 tokenId)
         public
         view

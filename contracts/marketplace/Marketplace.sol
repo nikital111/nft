@@ -10,13 +10,36 @@ contract Marketplace is VerifierOrder, ReentrancyGuard, Roles {
     event OrderCancelled(bytes32 orderHash, address offerer);
     event OrderFilled(bytes32 orderHash, address filler);
 
-    struct StatusOrder {
+    struct StatusOrder{
         bool canceled;
         bool filled;
     }
+    uint period = 1 days;
     uint fee = 10;
     mapping(bytes32 => Order) orders;
     mapping(bytes32 => StatusOrder) ordersStatus;
+
+    function cancelRent(Rent calldata rent) external nonReentrant {
+        _cancelRent(rent);
+    }
+
+    function validateAndFillRent(
+        Rent calldata rent,
+        uint duration,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external payable nonReentrant {
+        require(verifyRent(rent.offerer, rent, v, r, s));
+        bytes32 rentHash = _hashRent(rent);
+        StatusOrder storage rentStatus = ordersStatus[rentHash];
+        _validateRent(rent, duration, rentStatus);
+        _fillRent(rent);
+
+        rentStatus.filled = true;
+
+        emit RentFilled(rentHash, msg.sender);
+    }
 
     function validateAndFill(
         Order calldata order,
@@ -75,5 +98,38 @@ contract Marketplace is VerifierOrder, ReentrancyGuard, Roles {
         orderStatus.canceled = true;
 
         emit OrderCancelled(orderHash, msg.sender);
+    }
+
+    function _validateRent(
+        Rent calldata rent,
+        uint duration,
+        StatusOrder memory rentStatus
+    ) private {
+        require(!rentStatus.canceled);
+        require(!rentStatus.filled);
+        require(msg.value >= rent.pricePD * duration);
+        require(duration >= rent.minTime && duration <= rent.maxTime);
+    }
+
+    function _fillRent(Rent calldata rent, uint duration) private {
+        uint amount = rent.pricePD * duration;
+        uint amountWithFee = (amount * fee) / 100;
+        payable(order.offerer).transfer(amountWithFee);
+        if (msg.value > amount) {
+            payable(msg.sender).transfer(msg.value - amount);
+        }
+        NFT(order.token).setUser(rent.id, msg.sender, block.timestamp + period*duration);
+    }
+
+    function _cancelRent(Rent calldata rent) internal {
+        bytes32 rentHash = _hashRent(rent);
+        StatusOrder storage rentStatus = ordersStatus[rentHash];
+        if (rent.offerer != msg.sender || rentStatus.filled) {
+            revert();
+        }
+
+        rentStatus.canceled = true;
+
+        emit OrderCancelled(rentHash, msg.sender);
     }
 }
