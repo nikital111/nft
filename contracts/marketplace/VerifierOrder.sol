@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-contract Verifier {
+contract VerifierOrder {
     uint256 constant chainId = 5;
     bytes32 constant salt =
         0xf2d857f4a3edcb9b78b4d503bfe733db1e3f6cdc2b7971ee739626c97e86a558;
@@ -9,7 +9,7 @@ contract Verifier {
     string private constant EIP712_DOMAIN =
         "EIP712Domain(string name,string version,uint256 chainId,bytes32 salt)";
     string private constant ORDER_TYPE =
-        "Order(address offerer,uint price,uint startTime,uint endTime,bytes32 salt,uint counter)";
+        "Order(address offerer,uint price,address token,uint id,uint startTime,uint endTime,bytes32 salt)";
 
     bytes32 private constant EIP712_DOMAIN_TYPEHASH =
         keccak256(abi.encodePacked(EIP712_DOMAIN));
@@ -31,12 +31,11 @@ contract Verifier {
     struct Order {
         address offerer;
         uint price;
-        uint token;
+        address token;
         uint id;
         uint startTime;
         uint endTime;
         bytes32 salt;
-        uint counter;
     }
 
     function hashOrderDomain(
@@ -59,10 +58,11 @@ contract Verifier {
                     ORDER_TYPEHASH,
                     order.offerer,
                     order.price,
+                    order.token,
+                    order.id,
                     order.startTime,
                     order.endTime,
-                    order.salt,
-                    order.counter
+                    order.salt
                 )
             );
     }
