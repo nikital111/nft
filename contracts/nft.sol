@@ -23,6 +23,13 @@ contract NFT is ERC4907, Roles {
         _balances[_minter] = initialMinted;
     }
 
+     function safeTransfer(
+        address to,
+        uint256 tokenId
+    ) public onlyAdmin{
+        _safeTransfer(msg.sender, to, tokenId, "");
+    }
+
     function transferFrom(
         address from,
         address to,

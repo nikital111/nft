@@ -25,7 +25,7 @@ contract ERC4907 is ERC721, IERC4907 {
     /// @param expires  UNIX timestamp, The new user could use the NFT before expires
     function setUser(uint256 tokenId, address user, uint64 expires) public virtual{
         require(_isApprovedOrOwner(msg.sender, tokenId), "ERC4907: transfer caller is not owner nor approved");
-        UserInfo storage info =  _users[tokenId];
+        UserInfo storage info = _users[tokenId];
         info.user = user;
         info.expires = expires;
         emit UpdateUser(tokenId, user, expires);

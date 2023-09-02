@@ -2,14 +2,14 @@
 pragma solidity ^0.8.0;
 
 contract VerifierRent {
-    uint256 constant chainId = 5;
-    bytes32 constant salt =
-        0xf2d857f4a3edcb9b78b4d503bfe733db1e3f6cdc2b7971ee739626c97e86a558;
+    uint256 constant chainIdRent = 1337;
+    bytes32 constant saltRent =
+        0x526aeeff599cba16ffd0b92f14113f7c61925b76cc78ad576b3d48b2ad0139d3;
 
     string private constant EIP712_DOMAIN =
         "EIP712Domain(string name,string version,uint256 chainId,bytes32 salt)";
     string private constant RENT_TYPE =
-        "Rent(address offerer,uint pricePD,address token,uint id,uint minTime,uint maxTime,bytes32 salt)";
+        "Rent(address offerer,uint256 pricePD,address token,uint256 id,uint256 minTime,uint256 maxTime,bytes32 saltRent)";
 
     bytes32 private constant EIP712_DOMAIN_TYPEHASH =
         keccak256(abi.encodePacked(EIP712_DOMAIN));
@@ -21,21 +21,21 @@ contract VerifierRent {
         keccak256(
             abi.encode(
                 EIP712_DOMAIN_TYPEHASH,
-                keccak256("test"),
+                keccak256("rents"),
                 keccak256("1"),
-                chainId,
-                salt
+                chainIdRent,
+                saltRent
             )
         );
 
     struct Rent {
         address offerer;
-        uint pricePD;
+        uint256 pricePD;
         address token;
-        uint id;
-        uint minTime;
-        uint maxTime;
-        bytes32 salt;
+        uint256 id;
+        uint256 minTime;
+        uint256 maxTime;
+        bytes32 saltRent;
     }
 
     function hashRentDomain(Rent memory rent) private pure returns (bytes32) {
@@ -56,7 +56,7 @@ contract VerifierRent {
                     rent.id,
                     rent.minTime,
                     rent.maxTime,
-                    rent.salt
+                    rent.saltRent
                 )
             );
     }

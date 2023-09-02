@@ -1,7 +1,7 @@
 /* eslint-disable jest/valid-expect */
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { NFT } from "../typechain-types";
+import { NFT, Marketplace } from "../typechain-types";
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 import { HashZero } from "@ethersproject/constants";
@@ -22,21 +22,37 @@ describe("NFT", function () {
     await nft.setAdmin(owner.address, true);
 
     return { nft, owner, otherAccount };
+  } 
+
+  async function deployMarketplaceFixture() {
+    // Contracts are deployed using the first signer/account by default
+    const [owner, otherAccount] = await ethers.getSigners();
+
+    const Contract = await ethers.getContractFactory("Marketplace");
+    const marketplace: Marketplace = await Contract.deploy();
+
+    await marketplace.deployed();
+
+    return { marketplace, owner, otherAccount };
   }
 
   it("should be deployed", async function () {
     const { nft, owner } = await loadFixture(deployNFTFixture);
+    const { marketplace } = await loadFixture(deployMarketplaceFixture);
 
     const supply = await nft.totalSupply();
     const contractURI = await nft.contractURI();
     const ownerOfContract = await nft.owner();
+    const ownerOfContractMarket = await marketplace.owner();
 
     expect(nft.address).to.be.properAddress;
+    expect(marketplace.address).to.be.properAddress;
     expect(supply).to.eq(2000);
     // expect(contractURI).to.eq(
     //   "ipfs://Qmdf9A4JsqTydaucvGJ2V3GzsrW4XRLZENQTH2SQSQWkHZ"
     // );
     expect(ownerOfContract).to.eq(owner.address);
+    expect(ownerOfContractMarket).to.eq(owner.address);
     console.log("address is valid");
   });
 
@@ -326,5 +342,19 @@ describe("NFT", function () {
     const inter = await nft.supportsInterface(in2);
 
     expect(inter).to.eq(false);
+  });
+
+
+
+
+
+
+
+
+
+  it("market cancel order", async () => {
+    const { marketplace, owner, otherAccount } = await loadFixture(deployMarketplaceFixture);
+
+    
   });
 });
