@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 contract VerifierOrder {
-    uint256 constant chainId = 1337;
+    uint256 constant chainId = 1;
     bytes32 constant salt =
         0xf2d857f4a3edcb9b78b4d503bfe733db1e3f6cdc2b7971ee739626c97e86a558;
 

@@ -6,7 +6,12 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 import { HashZero } from "@ethersproject/constants";
 import { arrayify, BytesLike, concat, hexlify } from "@ethersproject/bytes";
-const { getSignOrder, getSignRent } = require("./shared/getSignature.js");
+const {
+  getSignOrder,
+  getSignRent,
+  getSignAuction,
+  getSignBid,
+} = require("./shared/getSignature.js");
 
 const address0 = "0x0000000000000000000000000000000000000000";
 
@@ -151,29 +156,6 @@ describe("Marketplace", function () {
     ).to.be.revertedWith("Marketplace: canceled");
   });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   it("verify rent", async function () {
     const { nft } = await loadFixture(deployNFTFixture);
     const { marketplace, owner, otherAccount } = await loadFixture(
@@ -192,7 +174,8 @@ describe("Marketplace", function () {
       id: tokenId1,
       minTime: 1,
       maxTime: 5,
-      saltRent: "0x526aeeff599cba16ffd0b92f14113f7c61925b76cc78ad576b3d48b2ad0139d3",
+      saltRent:
+        "0x526aeeff599cba16ffd0b92f14113f7c61925b76cc78ad576b3d48b2ad0139d3",
     };
 
     const { r, s, v } = await getSignRent(owner, rent);
@@ -205,16 +188,24 @@ describe("Marketplace", function () {
     nft.approve(marketplace.address, tokenId1);
 
     await expect(
-      marketplace.connect(otherAccount).validateAndFillRent(rent,rent.minTime, v, r, s)
+      marketplace
+        .connect(otherAccount)
+        .validateAndFillRent(rent, rent.minTime, v, r, s)
     ).to.be.revertedWith("Marketplace: value");
 
     const tx = await marketplace
       .connect(otherAccount)
-      .validateAndFillRent(rent,rent.minTime, v, r, s,{value:+rent.pricePD*rent.minTime});
+      .validateAndFillRent(rent, rent.minTime, v, r, s, {
+        value: +rent.pricePD * rent.minTime,
+      });
 
     await expect(tx).to.changeEtherBalances(
       [otherAccount.address, owner.address],
-      [-rent.pricePD*rent.minTime, +rent.pricePD*rent.minTime - ((+rent.pricePD*rent.minTime)*10/100)]
+      [
+        -rent.pricePD * rent.minTime,
+        +rent.pricePD * rent.minTime -
+          (+rent.pricePD * rent.minTime * 10) / 100,
+      ]
     );
 
     await expect(tx).to.emit(marketplace, "RentFilled");
@@ -224,18 +215,15 @@ describe("Marketplace", function () {
     await expect(
       marketplace
         .connect(otherAccount)
-        .validateAndFillRent(rent,rent.minTime, v, r, s,{value:+rent.pricePD*rent.minTime})
+        .validateAndFillRent(rent, rent.minTime, v, r, s, {
+          value: +rent.pricePD * rent.minTime,
+        })
     ).to.be.revertedWith("Marketplace: filled");
 
     await expect(marketplace.cancelRent(rent)).to.be.revertedWith(
       "Marketplace: offerer || filled"
     );
   });
-
-
-
-
-
 
   it("cancel rent", async function () {
     const { nft } = await loadFixture(deployNFTFixture);
@@ -255,7 +243,8 @@ describe("Marketplace", function () {
       id: tokenId1,
       minTime: 1,
       maxTime: 5,
-      saltRent: "0x526aeeff599cba16ffd0b92f14113f7c61925b76cc78ad576b3d48b2ad0139d3",
+      saltRent:
+        "0x526aeeff599cba16ffd0b92f14113f7c61925b76cc78ad576b3d48b2ad0139d3",
     };
 
     const { r, s, v } = await getSignRent(owner, rent);
@@ -269,10 +258,56 @@ describe("Marketplace", function () {
     await expect(tx).to.emit(marketplace, "RentCancelled");
 
     await expect(
-      marketplace.validateAndFillRent(rent,rent.minTime, v, r, s, {value:+rent.pricePD*rent.minTime})
+      marketplace.validateAndFillRent(rent, rent.minTime, v, r, s, {
+        value: +rent.pricePD * rent.minTime,
+      })
     ).to.be.revertedWith("Marketplace: canceled");
   });
 
+  it.only("verify auction", async function () {
+    const { nft } = await loadFixture(deployNFTFixture);
+    const { marketplace, owner, otherAccount } = await loadFixture(
+      deployMarketplaceFixture
+    );
+
+    const tokenId1 = 164;
+    const tokenId2 = 831;
+
+    await nft.setAdmin(marketplace.address, true);
+
+    let auction = {
+      offerer: owner.address,
+      startPrice: "100000000",
+      token: nft.address,
+      id: tokenId1,
+      endTime: 1692989703,
+      saltAuction:
+        "0xf2d857f4a3edcb9b78b4d503bfe733db1e3f6cdc2b7971ee739626c97e86a558",
+    };
+
+    const { r, s, v } = await getSignAuction(owner, auction);
+
+    const isVer = await marketplace.verifyAuction(
+      owner.address,
+      auction,
+      v,
+      r,
+      s
+    );
+    expect(isVer).to.eq(true);
+
+    let bid = {
+      bidder: owner.address,
+      price: "100000000",
+      auction: auction,
+      saltBid:
+        "0x9b5d9024b4776e6b1ef4559e3bc38ff1c06fac3df8c901ca7e6bf64ff3ced083",
+    };
+
+    const { r: rB, s: sB, v: vB } = await getSignBid(owner, bid);
 
 
+    const isVerB = await marketplace.verifyBid(owner.address, bid, vB, rB, sB);
+    expect(isVerB).to.eq(true);
+  });
 });

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 contract VerifierRent {
-    uint256 constant chainIdRent = 1337;
+    uint256 constant chainIdRent = 1;
     bytes32 constant saltRent =
         0x526aeeff599cba16ffd0b92f14113f7c61925b76cc78ad576b3d48b2ad0139d3;
 

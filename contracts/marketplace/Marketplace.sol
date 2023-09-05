@@ -3,11 +3,12 @@ pragma solidity ^0.8.0;
 
 import "./VerifierOrder.sol";
 import "./VerifierRent.sol";
+import "./VerifierAuction.sol";
 import "../utils/ReentrancyGuard.sol";
 import "../utils/Roles.sol";
 import "../nft.sol";
 
-contract Marketplace is VerifierOrder, VerifierRent, ReentrancyGuard, Roles {
+contract Marketplace is VerifierOrder, VerifierRent, VerifierAuction, ReentrancyGuard, Roles {
     event OrderCancelled(bytes32 orderHash, address offerer);
     event OrderFilled(bytes32 orderHash, address filler);
     event RentCancelled(bytes32 rentHash, address offerer);
