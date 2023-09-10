@@ -207,6 +207,14 @@ contract Marketplace is
         emit AuctionFilled(auctionHash, bidHash, msg.sender, bid.bidder);
     }
 
+    function cancelAuction(Auction calldata auction) external nonReentrant {
+        _cancelAuction(auction);
+    }
+
+    function cancelBid(Bid calldata bid) external nonReentrant {
+        _cancelBid(bid);
+    }
+
     function _validateAuction(
         Auction calldata auction,
         Bid calldata bid,
@@ -223,11 +231,13 @@ contract Marketplace is
         require(!bidStatus.canceled, "Marketplace: bid canceled");
         require(!bidStatus.filled, "Marketplace: bid filled");
         require(auction.endTime <= block.timestamp, "Marketplace: time");
+        require(auction.startPrice <= bid.price, "Marketplace: price");
     }
 
     function _fillAuction(Auction calldata auction, Bid calldata bid) private {
         uint _fee = (bid.price * fee) / 100;
         uint amountAfterFee = bid.price - _fee;
+        IERC20(weth).transferFrom(bid.bidder, address(this), _fee);
         IERC20(weth).transferFrom(bid.bidder, auction.offerer, amountAfterFee);
 
         NFT(auction.token).transferFrom(
@@ -259,5 +269,13 @@ contract Marketplace is
         bidStatus.canceled = true;
 
         emit BidCancelled(bidHash, msg.sender);
+    }
+
+    function withdrawToken(address _token, address _to, uint _amount) external onlyOwner nonReentrant {
+        IERC20(_token).transfer(_to, _amount);
+    }
+
+    function withdraw(address payable _to, uint _amount) external onlyOwner nonReentrant {
+        _to.transfer(_amount);
     }
 }

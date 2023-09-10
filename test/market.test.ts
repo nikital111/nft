@@ -1,7 +1,7 @@
 /* eslint-disable jest/valid-expect */
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { NFT, Marketplace } from "../typechain-types";
+import { NFT, Marketplace, WETH } from "../typechain-types";
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 import { HashZero } from "@ethersproject/constants";
@@ -34,12 +34,17 @@ describe("Marketplace", function () {
     // Contracts are deployed using the first signer/account by default
     const [owner, otherAccount] = await ethers.getSigners();
 
+    const Contract2 = await ethers.getContractFactory("WETH");
+    const weth: WETH = await Contract2.deploy();
+
+    await weth.deployed();
+
     const Contract = await ethers.getContractFactory("Marketplace");
-    const marketplace: Marketplace = await Contract.deploy();
+    const marketplace: Marketplace = await Contract.deploy(weth.address);
 
     await marketplace.deployed();
 
-    return { marketplace, owner, otherAccount };
+    return { marketplace, owner, otherAccount, weth };
   }
 
   it("should be deployed", async function () {
@@ -90,7 +95,7 @@ describe("Marketplace", function () {
 
     expect(await nft.ownerOf(tokenId1)).to.eq(owner.address);
 
-    nft.approve(marketplace.address, tokenId1);
+    await nft.approve(marketplace.address, tokenId1);
 
     await expect(
       marketplace.connect(otherAccount).validateAndFill(order, v, r, s)
@@ -117,6 +122,19 @@ describe("Marketplace", function () {
 
     await expect(marketplace.cancel(order)).to.be.revertedWith(
       "Marketplace: offerer || filled"
+    );
+
+    const fee = +order.price * 10 / 100;
+
+    await expect(marketplace.connect(otherAccount).withdraw(otherAccount.address,fee)).to.be.revertedWith(
+      "Not Owner"
+    );
+
+    const tx2 = await marketplace.withdraw(owner.address,fee);
+
+    await expect(tx2).to.changeEtherBalances(
+      [marketplace.address, owner.address],
+      [-fee, fee]
     );
   });
 
@@ -185,7 +203,7 @@ describe("Marketplace", function () {
 
     expect(await nft.userOf(tokenId1)).to.eq(address0);
 
-    nft.approve(marketplace.address, tokenId1);
+    await nft.approve(marketplace.address, tokenId1);
 
     await expect(
       marketplace
@@ -222,6 +240,19 @@ describe("Marketplace", function () {
 
     await expect(marketplace.cancelRent(rent)).to.be.revertedWith(
       "Marketplace: offerer || filled"
+    );
+
+    const fee = (+rent.pricePD * rent.minTime * 10) / 100;
+
+    await expect(marketplace.connect(otherAccount).withdraw(otherAccount.address,fee)).to.be.revertedWith(
+      "Not Owner"
+    );
+
+    const tx2 = await marketplace.withdraw(owner.address,fee);
+
+    await expect(tx2).to.changeEtherBalances(
+      [marketplace.address, owner.address],
+      [-fee, fee]
     );
   });
 
@@ -262,11 +293,12 @@ describe("Marketplace", function () {
         value: +rent.pricePD * rent.minTime,
       })
     ).to.be.revertedWith("Marketplace: canceled");
+    
   });
 
-  it.only("verify auction", async function () {
+  it("verify auction", async function () {
     const { nft } = await loadFixture(deployNFTFixture);
-    const { marketplace, owner, otherAccount } = await loadFixture(
+    const { marketplace, owner, otherAccount, weth } = await loadFixture(
       deployMarketplaceFixture
     );
 
@@ -274,6 +306,9 @@ describe("Marketplace", function () {
     const tokenId2 = 831;
 
     await nft.setAdmin(marketplace.address, true);
+    await nft.approve(marketplace.address, tokenId1);
+    await weth.mint(otherAccount.address, "200000000");
+    await weth.connect(otherAccount).approve(marketplace.address, "200000000");
 
     let auction = {
       offerer: owner.address,
@@ -297,17 +332,73 @@ describe("Marketplace", function () {
     expect(isVer).to.eq(true);
 
     let bid = {
-      bidder: owner.address,
-      price: "100000000",
+      bidder: otherAccount.address,
+      price: "200000000",
       auction: auction,
       saltBid:
         "0x9b5d9024b4776e6b1ef4559e3bc38ff1c06fac3df8c901ca7e6bf64ff3ced083",
     };
 
-    const { r: rB, s: sB, v: vB } = await getSignBid(owner, bid);
+    const { r: rB, s: sB, v: vB } = await getSignBid(otherAccount, bid);
 
-
-    const isVerB = await marketplace.verifyBid(owner.address, bid, vB, rB, sB);
+    const isVerB = await marketplace.verifyBid(
+      otherAccount.address,
+      bid,
+      vB,
+      rB,
+      sB
+    );
     expect(isVerB).to.eq(true);
+
+    await expect(
+      marketplace
+        .connect(otherAccount)
+        .validateAndFillAuction(auction, v, r, s, bid, vB, rB, sB)
+    ).to.be.revertedWith("Marketplace: offerer");
+
+    const tx = await marketplace.validateAndFillAuction(
+      auction,
+      v,
+      r,
+      s,
+      bid,
+      vB,
+      rB,
+      sB
+    );
+
+    await expect(tx).to.emit(marketplace, "AuctionFilled");
+
+    await expect(tx).to.changeTokenBalances(weth,
+      [otherAccount.address, owner.address],
+      [-bid.price, +bid.price - (+bid.price * 10) / 100]
+    );
+
+    expect(await nft.ownerOf(tokenId1)).to.eq(otherAccount.address);
+
+    await expect(
+      marketplace.validateAndFillAuction(auction, v, r, s, bid, vB, rB, sB)
+    ).to.be.revertedWith("Marketplace: auction filled");
+
+    await expect(marketplace.cancelAuction(auction)).to.be.revertedWith(
+      "Marketplace: offerer || filled"
+    );
+
+    await expect(marketplace.cancelBid(bid)).to.be.revertedWith(
+      "Marketplace: offerer || filled"
+    );
+
+    const fee = +bid.price * 10 / 100;
+
+    await expect(marketplace.connect(otherAccount).withdrawToken(weth.address,otherAccount.address,fee)).to.be.revertedWith(
+      "Not Owner"
+    );
+
+    const tx2 = await marketplace.withdrawToken(weth.address,owner.address,fee);
+
+    await expect(tx2).to.changeTokenBalances(weth,
+      [marketplace.address, owner.address],
+      [-fee, fee]
+    );
   });
 });

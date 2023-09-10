@@ -35,7 +35,7 @@ contract Roles is IRoles {
      * @dev Transfers ownership of the contract to a new account (`newOwner`).
      * Can only be called by the current owner.
      */
-    function transferOwnership(address _newOwner) external onlyOwner {
+    function transferOwnership(address _newOwner) external override onlyOwner {
         require(_newOwner != address(0), "Cannot transfer to zero address");
         emit OwnershipTransferred(owner, _newOwner);
         owner = _newOwner;
@@ -47,7 +47,7 @@ contract Roles is IRoles {
      * Emits a {SetAdmin} event.
      *
      */
-    function setAdmin(address user, bool isAdmin) external onlyOwner {
+    function setAdmin(address user, bool isAdmin) external override onlyOwner {
         admins[user] = isAdmin;
         emit SetAdmin(user, isAdmin, block.timestamp);
     }
@@ -55,7 +55,7 @@ contract Roles is IRoles {
     /**
      * @dev Returns whether the user is admin.
      */
-    function getAdmin(address user) external view returns (bool) {
+    function getAdmin(address user) external override view returns (bool) {
         return admins[user];
     }
 }

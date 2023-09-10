@@ -26,10 +26,10 @@ describe("NFT", function () {
 
   async function deployMarketplaceFixture() {
     // Contracts are deployed using the first signer/account by default
-    const [owner, otherAccount] = await ethers.getSigners();
+    const [owner, otherAccount, weth] = await ethers.getSigners();
 
     const Contract = await ethers.getContractFactory("Marketplace");
-    const marketplace: Marketplace = await Contract.deploy();
+    const marketplace: Marketplace = await Contract.deploy(weth.address);
 
     await marketplace.deployed();
 
